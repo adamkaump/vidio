@@ -37,6 +37,7 @@ private struct VideoPlayerRepresentable: UIViewRepresentable {
 }
 
 /// A class to manage video playback
+@MainActor
 public class VideoPlayerController {
     private let player: AVPlayer
     
