@@ -15,7 +15,7 @@ let package = Package(
             targets: ["vidio"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/tanersener/mobile-ffmpeg.git", from: "4.4.0")
+        .package(url: "https://github.com/kewlbear/FFmpeg-iOS.git", from: "0.0.1")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -23,10 +23,7 @@ let package = Package(
         .target(
             name: "vidio",
             dependencies: [
-                .product(name: "mobile-ffmpeg-full", package: "mobile-ffmpeg")
-            ],
-            swiftSettings: [
-                .define("ENABLE_FFMPEG")
+                .product(name: "FFmpeg", package: "FFmpeg-iOS")
             ]),
     ]
 )
