@@ -1,14 +1,17 @@
 import Foundation
 import AVFoundation
 import SwiftUI
+import mobile_ffmpeg
 
 /// A SwiftUI view that can play local video files
 public struct VideoPlayer: View {
     private let player: AVPlayer
     private let playerLayer: AVPlayerLayer
+    private let videoURL: URL
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
+        self.videoURL = url
         
         // Check if file exists
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -45,6 +48,11 @@ public struct VideoPlayer: View {
                 let isPlayable = try await asset.load(.isPlayable)
                 print("✅ Asset is playable: \(isPlayable)")
                 
+                if !isPlayable {
+                    // If not playable, try to convert using FFmpeg
+                    await convertVideoIfNeeded()
+                }
+                
                 if let duration = try? await asset.load(.duration) {
                     print("✅ Video duration: \(duration.seconds) seconds")
                 }
@@ -63,7 +71,37 @@ public struct VideoPlayer: View {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
+                // Try to convert using FFmpeg
+                await convertVideoIfNeeded()
             }
+        }
+    }
+    
+    private func convertVideoIfNeeded() async {
+        print("Attempting to convert video using FFmpeg")
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+        
+        // FFmpeg command to convert to H.264 MP4
+        let command = "-i \(videoURL.path) -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k \(tempURL.path)"
+        
+        do {
+            let rc = try await Task.detached {
+                return MobileFFmpeg.execute(command)
+            }.value
+            
+            if rc == 0 {
+                print("✅ Video conversion successful")
+                // Update player with converted video
+                await MainActor.run {
+                    let asset = AVAsset(url: tempURL)
+                    let playerItem = AVPlayerItem(asset: asset)
+                    player.replaceCurrentItem(with: playerItem)
+                }
+            } else {
+                print("❌ Video conversion failed with return code: \(rc)")
+            }
+        } catch {
+            print("❌ Error during video conversion: \(error.localizedDescription)")
         }
     }
     
@@ -123,6 +161,7 @@ private class PlayerView: UIView {
 @MainActor
 public class VideoPlayerController {
     private let player: AVPlayer
+    private let ffmpegContext: FFmpegContext?
     
     public init(url: URL) {
         print("Initializing VideoPlayerController with URL: \(url)")
@@ -132,6 +171,16 @@ public class VideoPlayerController {
             print("❌ Error: Video file does not exist at path: \(url.path)")
             fatalError("Video file not found")
         }
+        
+        // Try to create FFmpeg context first
+        var context: FFmpegContext?
+        do {
+            context = try FFmpegContext(url: url)
+            print("✅ Successfully created FFmpeg context")
+        } catch {
+            print("❌ Failed to create FFmpeg context: \(error.localizedDescription)")
+        }
+        self.ffmpegContext = context
         
         let asset = AVAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
@@ -168,7 +217,14 @@ public class VideoPlayerController {
     /// Play the video
     public func play() {
         print("Playing video")
-        player.play()
+        if ffmpegContext != nil {
+            // Use FFmpeg for playback
+            print("Using FFmpeg for playback")
+            // TODO: Implement FFmpeg playback
+        } else {
+            // Use native AVPlayer
+            player.play()
+        }
     }
     
     /// Pause the video
