@@ -108,7 +108,7 @@ public struct VideoPlayer: View {
         // Add progress observer
         let progressTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
         let progressTask = Task {
-            for await _ in progressTimer {
+            for await _ in progressTimer.values {
                 await MainActor.run {
                     conversionProgress = exportSession.progress
                 }
