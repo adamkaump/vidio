@@ -6,8 +6,6 @@ import SwiftUI
 public struct VideoPlayer: View {
     private let player: AVPlayer
     private let playerLayer: AVPlayerLayer
-    @State private var isConverting = false
-    @State private var conversionProgress: Float = 0
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
@@ -33,11 +31,6 @@ public struct VideoPlayer: View {
                 let isPlayable = try await asset.load(.isPlayable)
                 print("✅ Asset is playable: \(isPlayable)")
                 
-                if !isPlayable {
-                    print("⚠️ Asset is not playable, attempting conversion...")
-                    await convertToH264(url: url)
-                }
-                
                 if let duration = try? await asset.load(.duration) {
                     print("✅ Video duration: \(duration.seconds) seconds")
                 }
@@ -56,89 +49,21 @@ public struct VideoPlayer: View {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
-                await convertToH264(url: url)
-            }
-        }
-    }
-    
-    private func convertToH264(url: URL) async {
-        print("Starting conversion to H.264...")
-        await MainActor.run {
-            isConverting = true
-            conversionProgress = 0
-        }
-        
-        let asset = AVAsset(url: url)
-        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
-        
-        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
-            print("❌ Failed to create export session")
-            await MainActor.run {
-                isConverting = false
-            }
-            return
-        }
-        
-        exportSession.outputURL = outputURL
-        exportSession.outputFileType = .mp4
-        exportSession.shouldOptimizeForNetworkUse = true
-        
-        // Add progress observer
-        let progressTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
-        let progressTask = Task {
-            for await _ in progressTimer.values {
-                await MainActor.run {
-                    conversionProgress = exportSession.progress
-                }
-            }
-        }
-        
-        do {
-            try await exportSession.export()
-            progressTask.cancel()
-            
-            if exportSession.status == .completed {
-                print("✅ Conversion completed successfully")
-                // Replace the current player with the converted video
-                let convertedAsset = AVAsset(url: outputURL)
-                let playerItem = AVPlayerItem(asset: convertedAsset)
-                player.replaceCurrentItem(with: playerItem)
-                
-                await MainActor.run {
-                    isConverting = false
-                    conversionProgress = 1.0
-                }
-            }
-        } catch {
-            print("❌ Export error: \(error.localizedDescription)")
-            await MainActor.run {
-                isConverting = false
             }
         }
     }
     
     public var body: some View {
-        VStack {
-            VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onAppear {
-                    print("VideoPlayer appeared")
-                    player.play()
-                }
-                .onDisappear {
-                    print("VideoPlayer disappeared")
-                    player.pause()
-                }
-            
-            if isConverting {
-                VStack {
-                    ProgressView(value: conversionProgress) {
-                        Text("Converting video... \(Int(conversionProgress * 100))%")
-                    }
-                    .padding()
-                }
+        VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                print("VideoPlayer appeared")
+                player.play()
             }
-        }
+            .onDisappear {
+                print("VideoPlayer disappeared")
+                player.pause()
+            }
     }
 }
 
