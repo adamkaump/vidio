@@ -15,6 +15,12 @@ public struct VideoPlayer: View {
     
     public var body: some View {
         VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
+            .onAppear {
+                player.play()
+            }
+            .onDisappear {
+                player.pause()
+            }
     }
 }
 
