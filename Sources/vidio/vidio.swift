@@ -8,6 +8,7 @@ public struct VideoPlayer: View {
     private let player: AVPlayer
     private let playerLayer: AVPlayerLayer
     private let videoURL: URL
+    @State private var errorMessage: String?
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
@@ -27,6 +28,7 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
             if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
                 print("❌ Error playing video: \(error.localizedDescription)")
+                errorMessage = "Error playing video: \(error.localizedDescription)"
             }
         }
         
@@ -34,6 +36,7 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
             if let errorLog = playerItem.errorLog() {
                 print("❌ Error log: \(errorLog)")
+                errorMessage = "Error log: \(errorLog)"
             }
         }
         
@@ -49,8 +52,7 @@ public struct VideoPlayer: View {
                 print("✅ Asset is playable: \(isPlayable)")
                 
                 if !isPlayable {
-                    // If not playable, try to convert using FFmpeg
-                    await convertVideoIfNeeded()
+                    await checkVideoFormat()
                 }
                 
                 if let duration = try? await asset.load(.duration) {
@@ -71,51 +73,63 @@ public struct VideoPlayer: View {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
-                // Try to convert using FFmpeg
-                await convertVideoIfNeeded()
+                await checkVideoFormat()
             }
         }
     }
     
-    private func convertVideoIfNeeded() async {
-        print("Attempting to convert video using FFmpeg")
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+    private func checkVideoFormat() async {
+        print("Checking video format details")
+        let asset = AVAsset(url: videoURL)
         
-        // FFmpeg command to convert to H.264 MP4
-        let command = "-i \(videoURL.path) -c:v libx264 -preset medium -crf 23 -c:a aac -b:a 128k \(tempURL.path)"
-        
-        do {
-            let rc = try await Task.detached {
-                return MobileFFmpeg.execute(command)
-            }.value
-            
-            if rc == 0 {
-                print("✅ Video conversion successful")
-                // Update player with converted video
-                await MainActor.run {
-                    let asset = AVAsset(url: tempURL)
-                    let playerItem = AVPlayerItem(asset: asset)
-                    player.replaceCurrentItem(with: playerItem)
+        await MainActor.run {
+            let videoTracks = asset.tracks(withMediaType: .video)
+            for track in videoTracks {
+                if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
+                    let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
+                    let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
+                    
+                    print("Video format details:")
+                    print("- Media Type: \(mediaType)")
+                    print("- Media SubType: \(mediaSubType)")
+                    
+                    if let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] {
+                        print("- Format Extensions: \(extensions)")
+                    }
+                    
+                    // Check if it's an FMP4 file
+                    if mediaSubType == kCMFormatDescriptionMediaSubType_FMP4 {
+                        errorMessage = """
+                            This video uses the FMP4 (Flash MP4) codec which is not supported by iOS.
+                            Please convert the video to a supported format like H.264 MP4.
+                            You can use tools like HandBrake or FFmpeg to convert the video.
+                            """
+                    }
                 }
-            } else {
-                print("❌ Video conversion failed with return code: \(rc)")
             }
-        } catch {
-            print("❌ Error during video conversion: \(error.localizedDescription)")
         }
     }
     
     public var body: some View {
-        VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear {
-                print("VideoPlayer appeared")
-                player.play()
+        VStack {
+            VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    print("VideoPlayer appeared")
+                    player.play()
+                }
+                .onDisappear {
+                    print("VideoPlayer disappeared")
+                    player.pause()
+                }
+            
+            if let error = errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .padding()
+                    .multilineTextAlignment(.center)
             }
-            .onDisappear {
-                print("VideoPlayer disappeared")
-                player.pause()
-            }
+        }
     }
 }
 

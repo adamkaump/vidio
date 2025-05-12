@@ -14,16 +14,12 @@ let package = Package(
             name: "vidio",
             targets: ["vidio"]),
     ],
-    dependencies: [
-        .package(url: "https://github.com/tanersener/mobile-ffmpeg-full.git", from: "4.4.0")
-    ],
+    dependencies: [],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "vidio",
-            dependencies: [
-                .product(name: "mobile-ffmpeg-full", package: "mobile-ffmpeg-full")
-            ]),
+            dependencies: []),
     ]
 )
