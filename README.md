@@ -4,7 +4,7 @@ A simple Swift package for playing local video files in iOS applications. Built 
 
 ## Requirements
 
-- iOS 13.0+
+- iOS 15.0+
 - Swift 6.1+
 
 ## Supported Formats
