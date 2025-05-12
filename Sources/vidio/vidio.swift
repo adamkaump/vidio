@@ -3,7 +3,7 @@ import AVFoundation
 import SwiftUI
 
 // Define FMP4 media subtype
-private let kCMFormatDescriptionMediaSubType_FMP4: FourCharCode = FourCharCode("FMP4")
+private let kCMFormatDescriptionMediaSubType_FMP4: FourCharCode = FourCharCode("FMP4".utf8.map { UInt8($0) })
 
 /// A SwiftUI view that can play local video files
 public struct VideoPlayer: View {
@@ -90,7 +90,7 @@ public struct VideoPlayer: View {
         
         let videoTracks = asset.tracks(withMediaType: .video)
         for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first {
+            if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
                 let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
                 let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
                 
@@ -235,7 +235,7 @@ public class VideoPlayerController {
         
         let videoTracks = asset.tracks(withMediaType: .video)
         for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first {
+            if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
                 let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
                 let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
                 
