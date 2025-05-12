@@ -2,19 +2,13 @@ import Foundation
 import AVFoundation
 import SwiftUI
 
-// Define FMP4 media subtype
-private let kCMFormatDescriptionMediaSubType_FMP4: FourCharCode = FourCharCode("FMP4".utf8.map { UInt8($0) })
-
 /// A SwiftUI view that can play local video files
 public struct VideoPlayer: View {
     private let player: AVPlayer
     private let playerLayer: AVPlayerLayer
-    private let videoURL: URL
-    @State private var errorMessage: String?
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
-        self.videoURL = url
         
         // Check if file exists
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -30,9 +24,6 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
             if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
                 print("❌ Error playing video: \(error.localizedDescription)")
-                Task { @MainActor in
-                    errorMessage = "Error playing video: \(error.localizedDescription)"
-                }
             }
         }
         
@@ -40,9 +31,6 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
             if let errorLog = playerItem.errorLog() {
                 print("❌ Error log: \(errorLog)")
-                Task { @MainActor in
-                    errorMessage = "Error log: \(errorLog)"
-                }
             }
         }
         
@@ -56,10 +44,6 @@ public struct VideoPlayer: View {
             do {
                 let isPlayable = try await asset.load(.isPlayable)
                 print("✅ Asset is playable: \(isPlayable)")
-                
-                if !isPlayable {
-                    await checkVideoFormat()
-                }
                 
                 if let duration = try? await asset.load(.duration) {
                     print("✅ Video duration: \(duration.seconds) seconds")
@@ -79,63 +63,21 @@ public struct VideoPlayer: View {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
-                await checkVideoFormat()
-            }
-        }
-    }
-    
-    private func checkVideoFormat() async {
-        print("Checking video format details")
-        let asset = AVAsset(url: videoURL)
-        
-        let videoTracks = asset.tracks(withMediaType: .video)
-        for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first {
-                let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
-                let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
-                
-                print("Video format details:")
-                print("- Media Type: \(mediaType)")
-                print("- Media SubType: \(mediaSubType)")
-                
-                if let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] {
-                    print("- Format Extensions: \(extensions)")
-                }
-                
-                // Check if it's an FMP4 file
-                if mediaSubType == kCMFormatDescriptionMediaSubType_FMP4 {
-                    await MainActor.run {
-                        errorMessage = """
-                            This video uses the FMP4 (Flash MP4) codec which is not supported by iOS.
-                            Please convert the video to a supported format like H.264 MP4.
-                            You can use tools like HandBrake or FFmpeg to convert the video.
-                            """
-                    }
-                }
             }
         }
     }
     
     public var body: some View {
-        VStack {
-            VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .onAppear {
-                    print("VideoPlayer appeared")
-                    player.play()
-                }
-                .onDisappear {
-                    print("VideoPlayer disappeared")
-                    player.pause()
-                }
-            
-            if let error = errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .padding()
-                    .multilineTextAlignment(.center)
+        VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .onAppear {
+                print("VideoPlayer appeared")
+                player.play()
             }
-        }
+            .onDisappear {
+                print("VideoPlayer disappeared")
+                player.pause()
+            }
     }
 }
 
@@ -181,12 +123,9 @@ private class PlayerView: UIView {
 @MainActor
 public class VideoPlayerController {
     private let player: AVPlayer
-    private let videoURL: URL
-    @Published public var errorMessage: String?
     
     public init(url: URL) {
         print("Initializing VideoPlayerController with URL: \(url)")
-        self.videoURL = url
         
         // Check if file exists
         guard FileManager.default.fileExists(atPath: url.path) else {
@@ -204,10 +143,6 @@ public class VideoPlayerController {
                 let isPlayable = try await asset.load(.isPlayable)
                 print("✅ Asset is playable: \(isPlayable)")
                 
-                if !isPlayable {
-                    await checkVideoFormat()
-                }
-                
                 if let duration = try? await asset.load(.duration) {
                     print("✅ Video duration: \(duration.seconds) seconds")
                 }
@@ -224,37 +159,6 @@ public class VideoPlayerController {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
-                await checkVideoFormat()
-            }
-        }
-    }
-    
-    private func checkVideoFormat() async {
-        print("Checking video format details")
-        let asset = AVAsset(url: videoURL)
-        
-        let videoTracks = asset.tracks(withMediaType: .video)
-        for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first {
-                let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
-                let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
-                
-                print("Video format details:")
-                print("- Media Type: \(mediaType)")
-                print("- Media SubType: \(mediaSubType)")
-                
-                if let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] {
-                    print("- Format Extensions: \(extensions)")
-                }
-                
-                // Check if it's an FMP4 file
-                if mediaSubType == kCMFormatDescriptionMediaSubType_FMP4 {
-                    errorMessage = """
-                        This video uses the FMP4 (Flash MP4) codec which is not supported by iOS.
-                        Please convert the video to a supported format like H.264 MP4.
-                        You can use tools like HandBrake or FFmpeg to convert the video.
-                        """
-                }
             }
         }
     }
