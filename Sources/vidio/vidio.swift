@@ -50,14 +50,16 @@ public struct VideoPlayer: View {
                 }
                 
                 // Check available tracks
-                let tracks = try await asset.loadTracks(withMediaType: .video)
-                for track in tracks {
-                    print("✅ Found video track with format: \(track.formatDescriptions)")
-                }
-                
-                let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-                for track in audioTracks {
-                    print("✅ Found audio track with format: \(track.formatDescriptions)")
+                await MainActor.run {
+                    let videoTracks = asset.tracks(withMediaType: .video)
+                    for track in videoTracks {
+                        print("✅ Found video track with format: \(track.formatDescriptions)")
+                    }
+                    
+                    let audioTracks = asset.tracks(withMediaType: .audio)
+                    for track in audioTracks {
+                        print("✅ Found audio track with format: \(track.formatDescriptions)")
+                    }
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
@@ -146,14 +148,16 @@ public class VideoPlayerController {
                 }
                 
                 // Check available tracks
-                let tracks = try await asset.loadTracks(withMediaType: .video)
-                for track in tracks {
-                    print("✅ Found video track with format: \(track.formatDescriptions)")
-                }
-                
-                let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-                for track in audioTracks {
-                    print("✅ Found audio track with format: \(track.formatDescriptions)")
+                await MainActor.run {
+                    let videoTracks = asset.tracks(withMediaType: .video)
+                    for track in videoTracks {
+                        print("✅ Found video track with format: \(track.formatDescriptions)")
+                    }
+                    
+                    let audioTracks = asset.tracks(withMediaType: .audio)
+                    for track in audioTracks {
+                        print("✅ Found audio track with format: \(track.formatDescriptions)")
+                    }
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
