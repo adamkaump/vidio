@@ -8,7 +8,6 @@ public struct VideoPlayer: View {
     private let playerLayer: AVPlayerLayer
     @State private var isConverting = false
     @State private var conversionProgress: Float = 0
-    @State private var errorMessage: String?
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
@@ -22,26 +21,6 @@ public struct VideoPlayer: View {
         // Create asset and check if it's playable
         let asset = AVAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
-        
-        // Add observer for item status
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
-            if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
-                print("❌ Error playing video: \(error.localizedDescription)")
-                Task { @MainActor in
-                    errorMessage = "Error playing video: \(error.localizedDescription)"
-                }
-            }
-        }
-        
-        // Add observer for item status changes
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
-            if let errorLog = playerItem.errorLog() {
-                print("❌ Error log: \(errorLog)")
-                Task { @MainActor in
-                    errorMessage = "Error log: \(errorLog)"
-                }
-            }
-        }
         
         let player = AVPlayer(playerItem: playerItem)
         self.player = player
@@ -95,7 +74,6 @@ public struct VideoPlayer: View {
         guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
             print("❌ Failed to create export session")
             await MainActor.run {
-                errorMessage = "Failed to create export session"
                 isConverting = false
             }
             return
@@ -130,17 +108,10 @@ public struct VideoPlayer: View {
                     isConverting = false
                     conversionProgress = 1.0
                 }
-            } else if let error = exportSession.error {
-                print("❌ Conversion failed: \(error.localizedDescription)")
-                await MainActor.run {
-                    errorMessage = "Conversion failed: \(error.localizedDescription)"
-                    isConverting = false
-                }
             }
         } catch {
             print("❌ Export error: \(error.localizedDescription)")
             await MainActor.run {
-                errorMessage = "Export error: \(error.localizedDescription)"
                 isConverting = false
             }
         }
@@ -166,13 +137,6 @@ public struct VideoPlayer: View {
                     }
                     .padding()
                 }
-            }
-            
-            if let error = errorMessage {
-                Text(error)
-                    .foregroundColor(.red)
-                    .padding()
-                    .multilineTextAlignment(.center)
             }
         }
     }
