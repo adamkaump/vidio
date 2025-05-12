@@ -35,17 +35,34 @@ private struct VideoPlayerRepresentable: UIViewRepresentable {
     
     func makeUIView(context: Context) -> UIView {
         print("Creating UIView for VideoPlayer")
-        let view = UIView()
-        view.backgroundColor = .black // Add background color to see the view bounds
-        playerLayer.frame = view.bounds
-        playerLayer.videoGravity = .resizeAspect
-        view.layer.addSublayer(playerLayer)
+        let view = PlayerView(playerLayer: playerLayer)
+        view.backgroundColor = .black
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
         print("Updating UIView frame: \(uiView.bounds)")
-        playerLayer.frame = uiView.bounds
+    }
+}
+
+/// A UIView subclass that properly handles AVPlayerLayer layout
+private class PlayerView: UIView {
+    private let playerLayer: AVPlayerLayer
+    
+    init(playerLayer: AVPlayerLayer) {
+        self.playerLayer = playerLayer
+        super.init(frame: .zero)
+        layer.addSublayer(playerLayer)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        print("PlayerView layoutSubviews: \(bounds)")
+        playerLayer.frame = bounds
     }
 }
 
