@@ -90,7 +90,7 @@ public struct VideoPlayer: View {
         
         let videoTracks = asset.tracks(withMediaType: .video)
         for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
+            if let formatDescription = track.formatDescriptions.first {
                 let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
                 let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
                 
@@ -235,7 +235,7 @@ public class VideoPlayerController {
         
         let videoTracks = asset.tracks(withMediaType: .video)
         for track in videoTracks {
-            if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
+            if let formatDescription = track.formatDescriptions.first {
                 let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
                 let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
                 
