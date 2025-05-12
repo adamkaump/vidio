@@ -7,6 +7,18 @@ A simple Swift package for playing local video files in iOS applications. Built 
 - iOS 13.0+
 - Swift 6.1+
 
+## Supported Formats
+
+The package supports all video formats that AVFoundation can play, including:
+- MP4 (.mp4)
+- MOV (.mov)
+- AVI (.avi)
+- M4V (.m4v)
+- 3GP (.3gp)
+- And other formats supported by iOS
+
+Note: The actual support for specific formats depends on the codecs used in the video file. The package will log detailed information about the video tracks and any playback errors to help diagnose compatibility issues.
+
 ## Installation
 
 ### Swift Package Manager
@@ -96,6 +108,16 @@ if let videoURL = Bundle.main.url(forResource: "sample_video", withExtension: "m
 ```
 
 Note: Since `VideoPlayerController` is marked with `@MainActor`, you'll need to use `await` when calling its methods from a non-main context.
+
+## Debugging
+
+The package includes detailed logging to help diagnose playback issues:
+- File existence checks
+- Asset playability verification
+- Video and audio track format information
+- Playback error logging
+
+Check the console output for detailed information about the video file and any potential issues.
 
 ## API Reference
 

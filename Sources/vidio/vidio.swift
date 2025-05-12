@@ -9,9 +9,59 @@ public struct VideoPlayer: View {
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
-        let player = AVPlayer(url: url)
+        
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("❌ Error: Video file does not exist at path: \(url.path)")
+            fatalError("Video file not found")
+        }
+        
+        // Create asset and check if it's playable
+        let asset = AVAsset(url: url)
+        let playerItem = AVPlayerItem(asset: asset)
+        
+        // Add observer for item status
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
+            if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
+                print("❌ Error playing video: \(error.localizedDescription)")
+            }
+        }
+        
+        // Add observer for item status changes
+        NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
+            if let errorLog = playerItem.errorLog() {
+                print("❌ Error log: \(errorLog)")
+            }
+        }
+        
+        let player = AVPlayer(playerItem: playerItem)
         self.player = player
         self.playerLayer = AVPlayerLayer(player: player)
+        self.playerLayer.videoGravity = .resizeAspect
+        
+        // Check if the asset is playable
+        Task {
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                print("✅ Asset is playable: \(isPlayable)")
+                
+                if let duration = try? await asset.load(.duration) {
+                    print("✅ Video duration: \(duration.seconds) seconds")
+                }
+                
+                // Check available tracks
+                let tracks = try await asset.load(.tracks)
+                for track in tracks {
+                    if track.mediaType == .video {
+                        print("✅ Found video track with format: \(track.formatDescriptions)")
+                    } else if track.mediaType == .audio {
+                        print("✅ Found audio track with format: \(track.formatDescriptions)")
+                    }
+                }
+            } catch {
+                print("❌ Error checking asset playability: \(error.localizedDescription)")
+            }
+        }
     }
     
     public var body: some View {
@@ -73,7 +123,40 @@ public class VideoPlayerController {
     
     public init(url: URL) {
         print("Initializing VideoPlayerController with URL: \(url)")
-        self.player = AVPlayer(url: url)
+        
+        // Check if file exists
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("❌ Error: Video file does not exist at path: \(url.path)")
+            fatalError("Video file not found")
+        }
+        
+        let asset = AVAsset(url: url)
+        let playerItem = AVPlayerItem(asset: asset)
+        self.player = AVPlayer(playerItem: playerItem)
+        
+        // Check if the asset is playable
+        Task {
+            do {
+                let isPlayable = try await asset.load(.isPlayable)
+                print("✅ Asset is playable: \(isPlayable)")
+                
+                if let duration = try? await asset.load(.duration) {
+                    print("✅ Video duration: \(duration.seconds) seconds")
+                }
+                
+                // Check available tracks
+                let tracks = try await asset.load(.tracks)
+                for track in tracks {
+                    if track.mediaType == .video {
+                        print("✅ Found video track with format: \(track.formatDescriptions)")
+                    } else if track.mediaType == .audio {
+                        print("✅ Found audio track with format: \(track.formatDescriptions)")
+                    }
+                }
+            } catch {
+                print("❌ Error checking asset playability: \(error.localizedDescription)")
+            }
+        }
     }
     
     /// Play the video
