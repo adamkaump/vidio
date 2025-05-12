@@ -6,6 +6,9 @@ import SwiftUI
 public struct VideoPlayer: View {
     private let player: AVPlayer
     private let playerLayer: AVPlayerLayer
+    @State private var isConverting = false
+    @State private var conversionProgress: Float = 0
+    @State private var errorMessage: String?
     
     public init(url: URL) {
         print("Initializing VideoPlayer with URL: \(url)")
@@ -24,6 +27,9 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
             if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
                 print("❌ Error playing video: \(error.localizedDescription)")
+                Task { @MainActor in
+                    errorMessage = "Error playing video: \(error.localizedDescription)"
+                }
             }
         }
         
@@ -31,6 +37,9 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
             if let errorLog = playerItem.errorLog() {
                 print("❌ Error log: \(errorLog)")
+                Task { @MainActor in
+                    errorMessage = "Error log: \(errorLog)"
+                }
             }
         }
         
@@ -44,6 +53,11 @@ public struct VideoPlayer: View {
             do {
                 let isPlayable = try await asset.load(.isPlayable)
                 print("✅ Asset is playable: \(isPlayable)")
+                
+                if !isPlayable {
+                    print("⚠️ Asset is not playable, attempting conversion...")
+                    await convertToH264(url: url)
+                }
                 
                 if let duration = try? await asset.load(.duration) {
                     print("✅ Video duration: \(duration.seconds) seconds")
@@ -63,21 +77,104 @@ public struct VideoPlayer: View {
                 }
             } catch {
                 print("❌ Error checking asset playability: \(error.localizedDescription)")
+                await convertToH264(url: url)
+            }
+        }
+    }
+    
+    private func convertToH264(url: URL) async {
+        print("Starting conversion to H.264...")
+        await MainActor.run {
+            isConverting = true
+            conversionProgress = 0
+        }
+        
+        let asset = AVAsset(url: url)
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mp4")
+        
+        guard let exportSession = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
+            print("❌ Failed to create export session")
+            await MainActor.run {
+                errorMessage = "Failed to create export session"
+                isConverting = false
+            }
+            return
+        }
+        
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        // Add progress observer
+        let progressTimer = Timer.publish(every: 0.1, on: .main, in: .common).autoconnect()
+        let progressTask = Task {
+            for await _ in progressTimer {
+                await MainActor.run {
+                    conversionProgress = exportSession.progress
+                }
+            }
+        }
+        
+        do {
+            try await exportSession.export()
+            progressTask.cancel()
+            
+            if exportSession.status == .completed {
+                print("✅ Conversion completed successfully")
+                // Replace the current player with the converted video
+                let convertedAsset = AVAsset(url: outputURL)
+                let playerItem = AVPlayerItem(asset: convertedAsset)
+                player.replaceCurrentItem(with: playerItem)
+                
+                await MainActor.run {
+                    isConverting = false
+                    conversionProgress = 1.0
+                }
+            } else if let error = exportSession.error {
+                print("❌ Conversion failed: \(error.localizedDescription)")
+                await MainActor.run {
+                    errorMessage = "Conversion failed: \(error.localizedDescription)"
+                    isConverting = false
+                }
+            }
+        } catch {
+            print("❌ Export error: \(error.localizedDescription)")
+            await MainActor.run {
+                errorMessage = "Export error: \(error.localizedDescription)"
+                isConverting = false
             }
         }
     }
     
     public var body: some View {
-        VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear {
-                print("VideoPlayer appeared")
-                player.play()
+        VStack {
+            VideoPlayerRepresentable(player: player, playerLayer: playerLayer)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .onAppear {
+                    print("VideoPlayer appeared")
+                    player.play()
+                }
+                .onDisappear {
+                    print("VideoPlayer disappeared")
+                    player.pause()
+                }
+            
+            if isConverting {
+                VStack {
+                    ProgressView(value: conversionProgress) {
+                        Text("Converting video... \(Int(conversionProgress * 100))%")
+                    }
+                    .padding()
+                }
             }
-            .onDisappear {
-                print("VideoPlayer disappeared")
-                player.pause()
+            
+            if let error = errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .padding()
+                    .multilineTextAlignment(.center)
             }
+        }
     }
 }
 
