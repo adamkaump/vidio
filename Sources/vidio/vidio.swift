@@ -27,7 +27,9 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { notification in
             if let error = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
                 print("❌ Error playing video: \(error.localizedDescription)")
-                errorMessage = "Error playing video: \(error.localizedDescription)"
+                Task { @MainActor in
+                    errorMessage = "Error playing video: \(error.localizedDescription)"
+                }
             }
         }
         
@@ -35,7 +37,9 @@ public struct VideoPlayer: View {
         NotificationCenter.default.addObserver(forName: .AVPlayerItemNewErrorLogEntry, object: playerItem, queue: .main) { notification in
             if let errorLog = playerItem.errorLog() {
                 print("❌ Error log: \(errorLog)")
-                errorMessage = "Error log: \(errorLog)"
+                Task { @MainActor in
+                    errorMessage = "Error log: \(errorLog)"
+                }
             }
         }
         
@@ -81,23 +85,23 @@ public struct VideoPlayer: View {
         print("Checking video format details")
         let asset = AVAsset(url: videoURL)
         
-        await MainActor.run {
-            let videoTracks = asset.tracks(withMediaType: .video)
-            for track in videoTracks {
-                if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
-                    let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
-                    let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
-                    
-                    print("Video format details:")
-                    print("- Media Type: \(mediaType)")
-                    print("- Media SubType: \(mediaSubType)")
-                    
-                    if let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] {
-                        print("- Format Extensions: \(extensions)")
-                    }
-                    
-                    // Check if it's an FMP4 file
-                    if mediaSubType == kCMFormatDescriptionMediaSubType_FMP4 {
+        let videoTracks = asset.tracks(withMediaType: .video)
+        for track in videoTracks {
+            if let formatDescription = track.formatDescriptions.first as? CMFormatDescription {
+                let mediaType = CMFormatDescriptionGetMediaType(formatDescription)
+                let mediaSubType = CMFormatDescriptionGetMediaSubType(formatDescription)
+                
+                print("Video format details:")
+                print("- Media Type: \(mediaType)")
+                print("- Media SubType: \(mediaSubType)")
+                
+                if let extensions = CMFormatDescriptionGetExtensions(formatDescription) as? [String: Any] {
+                    print("- Format Extensions: \(extensions)")
+                }
+                
+                // Check if it's an FMP4 file
+                if mediaSubType == kCMFormatDescriptionMediaSubType_FMP4 {
+                    await MainActor.run {
                         errorMessage = """
                             This video uses the FMP4 (Flash MP4) codec which is not supported by iOS.
                             Please convert the video to a supported format like H.264 MP4.
