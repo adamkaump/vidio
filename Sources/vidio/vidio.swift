@@ -1,7 +1,6 @@
 import Foundation
 import AVFoundation
 import SwiftUI
-import mobile_ffmpeg_full
 
 /// A SwiftUI view that can play local video files
 public struct VideoPlayer: View {
