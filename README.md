@@ -26,6 +26,32 @@ Or add it directly in Xcode:
 
 ## Usage
 
+### Loading Local Video Files
+
+There are several ways to load local video files:
+
+1. From your app's bundle:
+```swift
+// Make sure to add the video file to your Xcode project
+// and check "Copy items if needed" in the file inspector
+if let videoURL = Bundle.main.url(forResource: "your_video", withExtension: "mp4") {
+    VideoPlayer(url: videoURL)
+}
+```
+
+2. From the Documents directory:
+```swift
+let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+let videoURL = documentsPath.appendingPathComponent("your_video.mp4")
+VideoPlayer(url: videoURL)
+```
+
+3. From a specific file path:
+```swift
+let videoURL = URL(fileURLWithPath: "/path/to/your/video.mp4")
+VideoPlayer(url: videoURL)
+```
+
 ### SwiftUI View
 
 The simplest way to use Vidio is with the SwiftUI view:
@@ -36,7 +62,13 @@ import vidio
 
 struct ContentView: View {
     var body: some View {
-        VideoPlayer(url: URL(fileURLWithPath: "/path/to/your/video.mp4"))
+        // Example using a video from the app bundle
+        if let videoURL = Bundle.main.url(forResource: "sample_video", withExtension: "mp4") {
+            VideoPlayer(url: videoURL)
+                .frame(width: 300, height: 200)
+        } else {
+            Text("Video file not found")
+        }
     }
 }
 ```
@@ -48,17 +80,19 @@ For more control over video playback, use the `VideoPlayerController`:
 ```swift
 import vidio
 
-// Create a controller
-let controller = VideoPlayerController(url: videoURL)
-
-// Control playback
-await controller.play()
-await controller.pause()
-await controller.seek(to: 30.0) // Seek to 30 seconds
-
-// Get playback information
-let currentTime = controller.currentTime
-let duration = controller.duration
+// Create a controller with a video from the app bundle
+if let videoURL = Bundle.main.url(forResource: "sample_video", withExtension: "mp4") {
+    let controller = VideoPlayerController(url: videoURL)
+    
+    // Control playback
+    await controller.play()
+    await controller.pause()
+    await controller.seek(to: 30.0) // Seek to 30 seconds
+    
+    // Get playback information
+    let currentTime = controller.currentTime
+    let duration = controller.duration
+}
 ```
 
 Note: Since `VideoPlayerController` is marked with `@MainActor`, you'll need to use `await` when calling its methods from a non-main context.
