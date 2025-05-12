@@ -23,7 +23,7 @@ let package = Package(
         .target(
             name: "vidio",
             dependencies: [
-                .product(name: "FFmpeg", package: "FFmpeg-iOS")
+                .product(name: "ffmpeg", package: "FFmpeg-iOS")
             ]),
     ]
 )

@@ -1,7 +1,7 @@
 import Foundation
 import AVFoundation
 import SwiftUI
-import FFmpeg
+import ffmpeg
 
 /// A SwiftUI view that can play local video files
 public struct VideoPlayer: View {
@@ -86,7 +86,7 @@ public struct VideoPlayer: View {
         
         do {
             let rc = try await Task.detached {
-                return FFmpeg.execute(command)
+                return ffmpeg.execute(command)
             }.value
             
             if rc == 0 {
