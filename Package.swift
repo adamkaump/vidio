@@ -15,7 +15,7 @@ let package = Package(
             targets: ["vidio"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/kewlbear/FFmpeg-iOS.git", from: "0.0.1")
+        .package(url: "https://github.com/tanersener/mobile-ffmpeg-full.git", from: "4.4.0")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -23,7 +23,7 @@ let package = Package(
         .target(
             name: "vidio",
             dependencies: [
-                .product(name: "ffmpeg", package: "FFmpeg-iOS")
+                .product(name: "mobile-ffmpeg-full", package: "mobile-ffmpeg-full")
             ]),
     ]
 )
